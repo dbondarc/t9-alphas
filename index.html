@@ -1,0 +1,258 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/angularjs/1.3.15/angular.min.js" type="text/javascript"></script>
+<style>
+    
+    body {margin:20px;}
+    div { max-width: 680px; }
+
+    .keypad {
+        display:inline-block;
+        width: auto;
+        max-width: 320px; 
+        height: auto;
+        background: #f2f2f2;
+        padding: 10px;
+        text-align:center;
+        float:left;
+    }
+
+    ul { 
+        list-style: none;
+        padding:0; margin:0 auto;
+    }
+
+    li {
+        width: 100px;
+        float: left;
+        margin: 5px auto;
+    }
+    
+    button {
+        cursor: pointer;
+        background: #e2e2e2;
+    }
+    
+    button.key {
+        padding: 10px;
+        width: 85px; height: 85px;
+        border-width: 5px;
+        border-radius: 10px;
+    }
+
+    button.clear {
+        float:right;
+        padding: 9px 12px;
+    }
+        
+    button:hover {
+        background: #c2c2c2;
+    }
+
+    button:active {
+        text-decoration: none;
+    }
+
+    button h2 {
+        font-size: 150%;
+    }
+    
+    button h4 {
+        float: right;
+        padding: 0;
+        font-size: 100%;
+        margin-top: 0px;
+    }
+
+    #digits {
+        width: 250px; height: 32px;  
+    }
+    
+    input, p {
+        border-radius: 5px;
+        float: left;
+        border-color: #ccc;
+        margin-left: 20px;
+    }
+    
+    #results {
+        width:280px;
+        height:400px;
+        overflow: scroll;
+        border: 1px solid #ccc;
+    }
+        
+</style>    
+</head>
+<body>
+
+    <div ng-app="T9W">
+        <div ng-controller="KeyCtrl"> 
+            <ul class="keypad">
+                <li ng-repeat="alpha in alphas | orderBy:'id'" ng-class="{ current: selected == $index }">
+                    <button class="key" ng-click="setNum($index); showResult();"><h4 ng-if="hasStr(alpha)">{{ alpha.str }}</h4><h2>{{ alpha.num }}</h2></button>
+                </li>
+            </ul>
+            <form name="myForm">
+                <input id="digits" type="text "maxlength="4" placeholder=" Use the keypad to enter a 4-digit number" disabled /><button class="clear btn-sm" ng-click="clearField(digits)">Clear</button>
+                <p style="margin-top:20px;">Alpha suggestions will appear below: </p>
+                <p id="results"></p>
+            </form> 
+        </div>
+    </div>
+
+    <script type="application/javascript">
+    
+    var alphas = [
+        { 
+            id : 1,
+            num : 1 
+        },
+        { 
+            id : 2,
+            num : 2,
+            str : "ABC" 
+        },
+        { 
+            id : 3,        
+            num : 3,
+            str : "DEF" 
+        },
+        { 
+            id : 4,        
+            num : 4,
+            str : "GHI" 
+        },
+        { 
+            id : 5,
+            num : 5,
+            str : "JKL" 
+        },
+        { 
+            id : 6,
+            num : 6,
+            str : "MNO" 
+        },
+        { 
+            id : 7,
+            num : 7,
+            str : "PQRS" 
+        },
+        { 
+            id : 8,
+            num : 8,
+            str : "TUV" 
+        },
+        { 
+            id : 9,
+            num : 9,
+            str : "WXYZ" 
+        },
+        { 
+            id : 10,
+            num : "*"
+        },    
+        { 
+            id : 11,        
+            num : 0
+        },
+        { 
+            id : 12,        
+            num : "#"
+        }    
+    ];
+
+    var app = angular.module( "T9W", [] );        
+    var input = document.getElementById("digits");
+    var results = document.getElementById("results");
+    var words = [];
+    var inputArr = [];
+    var strArr = [];
+        
+    app.controller( "KeyCtrl", function( $scope, $http ) {
+
+        function getData() {
+            $http.get("dictionary.json").
+            success( function( data, status, headers, config ) {
+                for (key in data) {
+                    if (typeof key === "string") {
+                        if (key.length < 5) words.push(key);
+                    }
+                }
+            }).
+            error( function(data, status, headers, config ) {
+                console.log("error getting resource");
+            });
+        }
+        
+        $scope.alphas = alphas;
+        $scope.selected = $scope.setNum;
+        $scope.hasStr = function(alpha) {
+            return alpha.hasOwnProperty('str')
+        };
+
+        $scope.setNum = function(index) {
+            var i = this.$index;
+            var sequence = alphas[i].num;
+            
+            if (input.value.length < 4) {
+                input.value += sequence;
+                inputArr.push(index);
+            }
+        };
+        
+        $scope.clearField = function(clearField) {
+            input.value = "";
+            results.innerHTML = "";
+            inputArr = [];
+            strArr = [];
+            getData();
+        };
+
+        
+        $scope.showResult = function(index) {
+            
+            var i = this.$index;
+            var thisObj = $scope.alphas[i];        // match the number to an alphas object   
+            var subset = [];
+            
+            function uniq(a) {
+                return a.sort().filter(function(item, pos, ary) {
+                    return !pos || item != ary[pos - 1];
+                })
+            }            
+            
+            function lookup(words, group, ct) {
+                var word, thisChar;
+                
+                for (w in words) {                 // for each word in words...
+                    word = words[w];
+
+                    for ( var c = 0; c < group.length; c++ ) {		// loop through chars [ A..B..C ]
+                        thisChar = group[c];                        // set current char  // A
+
+                        if ( thisChar === word.charAt(ct) ) {
+                            subset.push(word);
+                        }   
+                    }
+                }
+           
+                return subset = uniq(subset);
+            }                        
+            
+            if ( $scope.hasStr(thisObj) ) {                // if the object has an alpha...
+                strArr.push( thisObj.str );                // store all the alpha strings in an array 
+                words = lookup(words, thisObj.str, strArr.length-1);
+                results.innerHTML = words.join(", "); 
+            }
+
+        }
+
+        getData();        
+    });
+
+    </script>
+    
+</body>
+</html>
